@@ -1,0 +1,17 @@
+menu "Libraries"
+
+rsource "common/Kconfig"
+
+choice TRACKER_POLICY
+	prompt "Tracker policy implementation"
+	default TRACKER_POLICY_BT
+	depends on TRACKER_COMMON
+	help
+		""
+
+rsource "tracker_bt/Kconfig"
+rsource "tracker_fsm/Kconfig"
+
+endchoice
+
+endmenu

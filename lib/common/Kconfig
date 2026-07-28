@@ -1,0 +1,22 @@
+menuconfig TRACKER_COMMON
+	bool "Tracker common layer (zbus channels, blackboard, fake drivers)"
+	default y
+	select ZBUS
+	select ZBUS_CHANNEL_NAME
+	select ZBUS_RUNTIME_OBSERVERS
+	help
+		""
+
+if TRACKER_COMMON
+
+config TRACKER_TRACE
+	bool "Attach the universal trace probe to every zbus channel"
+	default y
+	help
+		""
+config TRACKER_WITH_TAMPER
+	bool "Include the tamper/violation-alert behavior"
+	default n
+	help
+		""
+endif # TRACKER_COMMON

@@ -1,0 +1,22 @@
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: vso
+      url-base: https://github.com/victorrsoliveira
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.0
+      import:
+        name-allowlist:
+          - cmsis
+          - hal_nordic
+          - hal_stm32
+          - segger
+    - name: btreefy
+      remote: vso
+      revision: main
+      path: modules/lib/btreefy
+path: .

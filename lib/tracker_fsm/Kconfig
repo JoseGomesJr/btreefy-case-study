@@ -1,0 +1,5 @@
+config TRACKER_POLICY_FSM
+	bool "Finite State Machine (Zephyr SMF)"
+	select SMF
+	help
+		""

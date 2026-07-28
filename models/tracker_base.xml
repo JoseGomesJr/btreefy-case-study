@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="tracker_base">
+    <Fallback>
+      <Sequence>
+        <ScriptCondition name="NewPositionRequested"
+                         code="cond_new_position_requested"/>
+        <Fallback>
+          <Sequence>
+            <Script name="GNSSFix"
+                    code="action_gnss_fix"/>
+            <Script name="SendPosition"
+                    code="action_send_position"/>
+          </Sequence>
+          <Script name="RegisterPositioningFailure"
+                  code="action_register_positioning_failure"/>
+        </Fallback>
+      </Sequence>
+      <Script name="Sleep"
+              code="action_sleep"/>
+    </Fallback>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel/>
+
+</root>

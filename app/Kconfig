@@ -1,0 +1,27 @@
+menu "Tracker Oracle"
+
+config TRACKER_ORACLE_MODE
+	bool "Run the deterministic oracle event sequence instead of the smoke demo"
+	default n
+	help
+     ""
+
+if TRACKER_ORACLE_MODE
+
+config TRACKER_ORACLE_SEED
+	int "PRNG seed for the oracle event sequence"
+	default 42
+	help
+	  ""
+
+config TRACKER_ORACLE_N_EVENTS
+	int "Number of oracle events to generate"
+	default 200
+
+endif # TRACKER_ORACLE_MODE
+
+endmenu
+
+menu "Zephyr Kernel"
+source "$ZEPHYR_BASE/Kconfig.zephyr"
+endmenu
