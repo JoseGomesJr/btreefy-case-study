@@ -23,13 +23,13 @@ APP_DIR = REPO_ROOT / "app"
 RESULTS_DIR = REPO_ROOT / "results"
 BUILD_ROOT = REPO_ROOT / "build" / "footprint"
 
-BOARD = "nrf52840dk/nrf52840"
+BOARD = "native_sim"
 SECTIONS = (".text", ".rodata", ".data", ".bss")
 
 app = typer.Typer()
 
 
-def build(policy: str, tamper: bool, build_dir: Path) -> Path:
+def build(policy: str, tamper: bool, build_dir: Path, board: str = BOARD) -> Path:
     conf_files = [f"tracker_{policy}.conf"]
     if tamper:
         conf_files.append("tamper.conf")
@@ -37,7 +37,7 @@ def build(policy: str, tamper: bool, build_dir: Path) -> Path:
         "west",
         "build",
         "-b",
-        BOARD,
+        board,
         str(APP_DIR),
         "-d",
         str(build_dir),
@@ -49,7 +49,10 @@ def build(policy: str, tamper: bool, build_dir: Path) -> Path:
         "-DCONFIG_TRACKER_TRACE=n",
     ]
     subprocess.run(cmd, cwd=REPO_ROOT, check=True)
-    return build_dir / "zephyr" / "zephyr.elf"
+    # native_sim produces zephyr.exe; real boards produce zephyr.elf
+    exe = build_dir / "zephyr" / "zephyr.exe"
+    elf = build_dir / "zephyr" / "zephyr.elf"
+    return exe if exe.exists() else elf
 
 
 def section_sizes(elf_path: Path) -> dict[str, int]:
@@ -63,7 +66,8 @@ def section_sizes(elf_path: Path) -> dict[str, int]:
 
 
 @app.command()
-def run(build_root: Path = BUILD_ROOT, skip_build: bool = False) -> None:
+def run(build_root: Path = BUILD_ROOT, skip_build: bool = False,
+        board: str = BOARD) -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
     variants = [("bt", False), ("bt", True), ("fsm", False), ("fsm", True)]
@@ -73,9 +77,14 @@ def run(build_root: Path = BUILD_ROOT, skip_build: bool = False) -> None:
         tag = f"{policy}_{'tamper' if tamper else 'base'}"
         build_dir = build_root / tag
         elf_path = (
-            (build_dir / "zephyr" / "zephyr.elf")
-            if skip_build
-            else build(policy, tamper, build_dir)
+            next(
+                p for p in [
+                    build_dir / "zephyr" / "zephyr.exe",
+                    build_dir / "zephyr" / "zephyr.elf",
+                ]
+                if p.exists()
+            ) if skip_build
+            else build(policy, tamper, build_dir, board=board)
         )
         sizes = section_sizes(elf_path)
         flash_total = sizes[".text"] + sizes[".rodata"] + sizes[".data"]
@@ -98,7 +107,7 @@ def run(build_root: Path = BUILD_ROOT, skip_build: bool = False) -> None:
         writer.writerow(["variant", "text", "rodata", "data", "bss", "flash_total", "ram_total"])
         writer.writerows(rows)
 
-    typer.echo(f"wrote {out_path} (board={BOARD})")
+    typer.echo(f"wrote {out_path} (board={board})")
 
 
 if __name__ == "__main__":
