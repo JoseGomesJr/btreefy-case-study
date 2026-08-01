@@ -1,8 +1,10 @@
-
 #include <stdbool.h>
 #include <stdint.h>
 
 #include <zephyr/kernel.h>
+#ifdef CONFIG_THREAD_ANALYZER
+#include <zephyr/debug/thread_analyzer.h>
+#endif
 
 #include "tracker/drivers_fake.h"
 
@@ -85,6 +87,9 @@ int main(void)
         k_msleep(5);
     }
 
+#ifdef CONFIG_THREAD_ANALYZER
+    thread_analyzer_print();
+#endif
     printk("ORACLE_DONE\n");
     return 0;
 }

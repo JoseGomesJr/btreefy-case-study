@@ -13,6 +13,7 @@ dependencies = [
     "typer>=0.15",
     "pyserial",
     "matplotlib>=3.9",
+    "typing-extensions>=4.16.0",
 ]
 
 [dependency-groups]

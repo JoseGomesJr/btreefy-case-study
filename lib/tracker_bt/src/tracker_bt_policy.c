@@ -33,7 +33,12 @@ static void tracker_bt_thread_entry(void *p1, void *p2, void *p3)
         }
 
         tracker_bb_update(chan);
+        
+        uint32_t start = k_cycle_get_32();
         btf_tick_tree(&s_bt_tree);
+        uint32_t end = k_cycle_get_32();
+        
+        printk("[CYCLES] %u\n", end - start);
     }
 }
 
