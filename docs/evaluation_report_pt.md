@@ -145,6 +145,11 @@ Para investigar como o footprint escala com a complexidade, calculamos o tamanho
 
 Este dado isolado demonstra de forma irrefutável por que uma FSM é imbatível em economia de RAM (já que sua estrutura de transição mora inteiramente em `.rodata` na Flash). Contudo, mostra também que mesmo uma gigantesca Behavior Tree de 125 nós ocuparia apenas 3 KB de RAM — um valor irrisório para as MCUs modernas baseadas em Cortex-M, justificando a troca de uso de RAM por melhor organização de código.
 
+Além disso, como o tamanho do array LCRS cresce de forma perfeitamente previsível em relação ao número de nós ($N$), é possível expressar o custo em RAM do modelo na forma de uma fórmula matemática. Na implementação atual, o custo é de $N \times 24$ bytes. Entretanto, assumindo que a flag de DEBUG esteja desativada (removendo o ponteiro `char *name` de 4 bytes) e que a árvore possua no máximo 255 nós (permitindo que os índices `parent`, `child` e `sibling`, bem como o enum `status`, sejam representados por tipos `uint8_t` de 1 byte), o nó conteria apenas 4 bytes de metadados + 4 bytes do ponteiro de função da ação/condição. Nestas condições ideais de produção, o modelo ocuparia um total exato de:
+**Tamanho do Array (RAM) = $N \times 8$ bytes**
+
+Aplicando esta fórmula otimizada, o modelo massivo de 125 nós custaria exatos **1.000 bytes (1 KB)** de RAM, reduzindo drasticamente o gap em relação à FSM mesmo em cenários ultra-restritos.
+
 ---
 
 ## Eixo D — Equivalência Comportamental
