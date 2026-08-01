@@ -11,6 +11,7 @@ import typer
 import code_metrics
 import footprint
 import model_metrics
+import modularity_metrics
 import report
 
 app = typer.Typer()
@@ -27,6 +28,9 @@ def run(
 
     typer.echo("=== code_metrics ===")
     code_metrics.run()
+
+    typer.echo("=== modularity_metrics ===")
+    modularity_metrics.run()
 
     wrote_footprint = False
     if skip_footprint:
@@ -47,7 +51,7 @@ def run(
                 err=True,
             )
 
-    written = "results/model.csv, results/code.csv" + (
+    written = "results/model.csv, results/code.csv, results/modularity.csv" + (
         ", results/footprint.csv" if wrote_footprint else " (footprint.csv skipped)"
     )
     typer.echo(f"{written} atualizados")

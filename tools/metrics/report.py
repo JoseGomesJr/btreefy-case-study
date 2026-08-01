@@ -113,7 +113,7 @@ def make_table(
          f"{ged.get('ged_fsm_base_to_tamper', '—')}"),
         pair_row("CC grafo decisão (base)", model_variants, "bt_base", "fsm_base", cc),
         pair_row("CC grafo decisão (tamper)", model_variants, "bt_tamper", "fsm_tamper", cc),
-        pair_row("LOC dentro do #ifdef tamper", code, "bt", "fsm", "tamper_ifdef_loc"),
+        pair_row("SLOC da feature de tamper", code, "bt", "fsm", "tamper_feature_sloc"),
         pair_row("Funções (lizard)", code, "bt", "fsm", "n_functions"),
         pair_row("CC McCabe médio", code, "bt", "fsm", "cc_mean"),
     ]
@@ -185,15 +185,15 @@ def make_charts(
     ax.set_ylabel("distância de edição de grafo")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # Panel 2 — LOC dentro do #ifdef de tamper.
+    # Panel 2 — SLOC da feature de tamper.
     ax = axes[0][1]
     values = [
-        _int(code.get("bt", {}), "tamper_ifdef_loc"),
-        _int(code.get("fsm", {}), "tamper_ifdef_loc"),
+        _int(code.get("bt", {}), "tamper_feature_sloc"),
+        _int(code.get("fsm", {}), "tamper_feature_sloc"),
     ]
     bars = ax.bar(labels, values, color=[COLOR_BT, COLOR_FSM], width=0.5)
     ax.bar_label(bars, padding=3)
-    ax.set_title("LOC dentro do #ifdef de tamper")
+    ax.set_title("SLOC da feature de tamper")
     ax.set_ylabel("linhas")
     ax.spines[["top", "right"]].set_visible(False)
 

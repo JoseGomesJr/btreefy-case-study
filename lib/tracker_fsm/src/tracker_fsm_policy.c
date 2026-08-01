@@ -52,7 +52,12 @@ static void tracker_fsm_thread_entry(void *p1, void *p2, void *p3)
         }
 
         tracker_bb_update(chan);
-        tracker_fsm_step();
+        
+        uint32_t start = k_cycle_get_32();
+        smf_run_state(SMF_CTX(&s_fsm));
+        uint32_t end = k_cycle_get_32();
+        
+        printk("[CYCLES] %u\n", end - start);
     }
 }
 

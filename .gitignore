@@ -1,4 +1,15 @@
+# Build outputs and cache
 build/
 .cache/
 *.map
 compile_commands.json
+
+# Gemini CLI artifacts
+.gemini/
+
+# Test & evaluation results
+results/
+
+# Python cache & environment lock files
+*.pyc
+uv.lock
