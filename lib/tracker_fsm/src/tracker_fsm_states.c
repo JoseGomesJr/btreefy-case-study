@@ -6,6 +6,19 @@
 #include "tracker/tracker_bb.h"
 #include "tracker/tracker_events.h"
 
+#if IS_ENABLED(CONFIG_TRACKER_TRACE)
+static inline void fsm_trace_transition(struct smf_ctx *ctx, const struct smf_state *new_state)
+{
+    if (ctx->current != NULL && new_state != NULL) {
+        printk("FSM_TR,%u,%d,%d\n", k_cycle_get_32(),
+               (int)(ctx->current - tracker_fsm_states),
+               (int)(new_state - tracker_fsm_states));
+    }
+    (smf_set_state)(ctx, new_state);
+}
+#define smf_set_state fsm_trace_transition
+#endif
+
 #ifdef CONFIG_TRACKER_WITH_TAMPER
 
 #define TRACKER_FSM_TAMPER_GUARD(o)                                              \

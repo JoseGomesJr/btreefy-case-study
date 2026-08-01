@@ -31,15 +31,7 @@ static inline int state_index(const struct smf_state *state)
 
 static void tracker_fsm_step(void)
 {
-    const struct smf_state *prev = s_fsm.ctx.current;
-
     smf_run_state(SMF_CTX(&s_fsm));
-
-    if (IS_ENABLED(CONFIG_TRACKER_TRACE) && (s_fsm.ctx.current != prev))
-    {
-        printk("FSM_TR,%u,%d,%d\n", k_cycle_get_32(), state_index(prev),
-               state_index(s_fsm.ctx.current));
-    }
 }
 
 static void tracker_fsm_thread_entry(void *p1, void *p2, void *p3)

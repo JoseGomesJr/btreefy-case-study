@@ -82,6 +82,11 @@ def build_fsm_oracle(tamper: bool, build_dir: Path) -> Path:
         "--",
         f"-DEXTRA_CONF_FILE={';'.join(conf_files)}",
         "-DCONFIG_TRACKER_ORACLE_N_EVENTS=500",
+        # FSM graph reconstruction depends on FSM_TR lines which are
+        # gated by CONFIG_TRACKER_TRACE. oracle.conf disables trace to
+        # keep the oracle binary lean, but we must re-enable it here
+        # so the transitions are visible in stdout for graph extraction.
+        "-DCONFIG_TRACKER_TRACE=y",
     ]
     subprocess.run(cmd, cwd=REPO_ROOT, check=True)
     return build_dir / "zephyr" / "zephyr.exe"
