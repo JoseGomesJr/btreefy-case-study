@@ -27,6 +27,7 @@ The goal of the case study is to evaluate the BTreeFy framework along three axes
 - **Axis D — Behavioral equivalence**: Do both implementations react identically to the same event
   sequence? Validated by an equivalence oracle that runs both binaries on `native_sim` with a shared
   seeded PRNG and classifies behavioral divergences.
+- **Axis E — Execution Performance (Latency)**: What is the processing overhead (WCET and Mean) of a large decision graph? Measured via a procedurally generated 125-node/64-state stress test running on a real Cortex-M0 microcontroller (Nucleo F091RC).
 
 ---
 
@@ -311,6 +312,23 @@ uv run python footprint.py --build-root /path/to/build/footprint
 
 **Output**: `results/footprint.csv`
 Columns: `variant`, `text`, `rodata`, `data`, `bss`, `flash_total`, `ram_total`
+
+#### `generate_stress.py` — Axis E: Execution Performance (Latency)
+
+Procedurally generates a massive decision model (5 levels deep) to benchmark latency limits on constrained hardware.
+- Generates a 125-node Behavior Tree (XML).
+- Generates a 64-state / 95-transition Zephyr SMF FSM (C code).
+- Scaffolds a complete temporary Zephyr application at `tests/stress_app/`.
+
+```bash
+cd tools/metrics
+uv run python generate_stress.py
+cd ../..
+# Compile and flash to the real board
+west build -p -b nucleo_f091rc tests/stress_app -d build/stress_app
+west flash -d build/stress_app
+# Read serial port (e.g. cat /dev/ttyACM0) for latency measurements
+```
 
 #### `report.py` — Generate visual summary
 
