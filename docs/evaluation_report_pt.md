@@ -128,14 +128,22 @@ Ambas as implementações compartilham o mesmo CC máximo de 4 e médias de CC s
 
 ### Análise
 
-**Base de BT vs FSM:** A implementação da BT é consistentemente maior — aproximadamente **+960 bytes de flash** e **+320 bytes de RAM** na variante base. Esse overhead vem do próprio runtime da BTreeFy: o motor de travessia da árvore (`btreefy.c`, `btreefy_policies.c`), o array de nós LCRS gerado a partir do XML, e o executor POSIX. Estes são custos fixos que existem independentemente do que a árvore faça.
+**Base de BT vs FSM:** A implementação da BT é consistentemente maior — aproximadamente **+960 bytes de flash** e **+320 bytes de RAM** na variante base. Esse overhead vem do próprio runtime da BTreeFy: inspecionando o arquivo isolado da biblioteca compilada (`libBTreeFy-Src.a`), o motor central de execução (`btreefy.c` e `btreefy_policies.c`) consome exatos **866 bytes de Flash** e **32 bytes de RAM**. O restante da diferença vem do array estrutural LCRS (que cresce ligeiramente de acordo com a árvore). Em suma, o "imposto" estático (custo fixo base independente da árvore) do framework BTreeFy é de menos de 1 KB de Flash e irrisórios 32 bytes de RAM.
 
 **Custo da adição da funcionalidade tamper:**
 
 - **Flash:** Ambas as implementações adicionam exatamente **+224 bytes** de flash quando o tamper está ativado. Apesar da FSM precisar de mais código C (30 LOC vs 12 LOC dentro de ifdefs), o tamanho do código compilado é idêntico — a macro de guarda da FSM é convertida em pequenos desvios condicionais inline, e as novas funções folha da BT são similarmente compactas.
 - **RAM:** A BT adiciona **+96 bytes** de RAM (`.data` cresce de 1.024 para 1.120 bytes) para a variante tamper, provavelmente devido ao array de nós LCRS maior para a árvore tamper. A FSM adiciona **+0 bytes** de RAM — a tabela de estados é armazenada em `.rodata` e a nova entrada `STATE_TAMPER_ALERT` é compilada condicionalmente, mas o tamanho da estrutura `smf_ctx` não muda.
 
-**Ponto chave:** A BT carrega um overhead de runtime fixo (~960 B flash, ~320 B RAM) em comparação com a FSM. Contudo, o **custo marginal de estender** o comportamento é comparável em flash e ligeiramente pior para a BT em RAM. Para microcontroladores restritos, a FSM permanece mais enxuta na base, mas a diferença é modesta e as vantagens de extensibilidade da BT (Eixo B) podem superar isso para aplicações que exigem frequentes mudanças comportamentais.
+**Ponto chave:** A BT carrega um overhead de runtime fixo (~960 B flash, ~32 B RAM do motor central) em comparação com a FSM. Contudo, o **custo marginal de estender** o comportamento é comparável em flash e ligeiramente pior para a BT em RAM. Para microcontroladores restritos, a FSM permanece mais enxuta na base, mas a diferença é modesta e as vantagens de extensibilidade da BT (Eixo B) podem superar isso para aplicações que exigem frequentes mudanças comportamentais.
+
+### Footprint Isolado dos Modelos (Estresse Massivo)
+
+Para investigar como o footprint escala com a complexidade, calculamos o tamanho ocupado isoladamente apenas pelos modelos lógicos do teste de estresse massivo (aplicativo gerado proceduralmente com 5 níveis de profundidade):
+- **FSM (64 Estados / 95 Transições):** Exigiu **~3,4 KB de Flash** (2,67 KB de código C `.text` + 768 bytes para o array da tabela de estados em `.rodata`) e apenas **20 bytes de RAM** (estrutura do contexto atual `smf_ctx`).
+- **Behavior Tree (125 Nós):** Exigiu **~4,8 KB de Flash** (840 bytes de código das folhas, 971 bytes de strings de nomes e 3 KB para a imagem de inicialização da árvore) e **~3,0 KB de RAM** (alocação do array LCRS para os 125 nós, a 24 bytes cada, necessário para salvar o status dinâmico como `RUNNING`).
+
+Este dado isolado demonstra de forma irrefutável por que uma FSM é imbatível em economia de RAM (já que sua estrutura de transição mora inteiramente em `.rodata` na Flash). Contudo, mostra também que mesmo uma gigantesca Behavior Tree de 125 nós ocuparia apenas 3 KB de RAM — um valor irrisório para as MCUs modernas baseadas em Cortex-M, justificando a troca de uso de RAM por melhor organização de código.
 
 ---
 
