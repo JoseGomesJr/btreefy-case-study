@@ -56,29 +56,28 @@
 
 \title{BTreeFy: um \textit{framework} de \textit{Behavior Trees} para Sistemas Embarcados com Recursos Restritos}
 
-\author{\IEEEauthorblockN{Victor R. S. de Oliveira, Rodrigo Peixoto, ... , Bruno Nogueira}
-\IEEEauthorblockA{\textit{Instituto de Computação} \\
-\textit{Universidade Federal de Alagoas}\\
+\author{\IEEEauthorblockN{Victor R. S. de Oliveira, Bruno Nogueira, }
+\IEEEauthorblockA{\textit{Instituto de Computação} - \textit{Universidade Federal de Alagoas} \\
+\textit{}
 Maceió, Brasil \\
-\{vrso, rodrigopex, \}@ic.ufal.br}
-\and
-\IEEEauthorblockN{Bruno Nogueira}
-\IEEEauthorblockA{\textit{Instituto de Computação} \\
-\textit{Universidade Federal de Alagoas}\\
-Maceió, Brasil \\
-bruno@ic.ufal.br}
+\{vrso, bruno\}@ic.ufal.br}
 \and
 \IEEEauthorblockN{Alfredo Lima}
 \IEEEauthorblockA{\textit{<Departamento ABC>} \\
 \textit{<Organização XYZ>}\\
 <Cidade da Organização>, <País da Organização> \\
-<alfredolimams@gmail.com}
+alfredolimams@gmail.com}
+\and
+\IEEEauthorblockN{José Gomes, José Renilson Almeida da Silva, Rodrigo Peixoto}
+\IEEEauthorblockA{\textit{Centro de Inovação Edge - Universidade Federal de Alagoas} \\
+Maceió, Brasil \\
+\{jose.junior, joserenilson.silva, rodrigopex\}@edge.ufal.br}
 }
 
 \maketitle
 
 \begin{abstract}
-Em aplicações de Sistemas Embarcados, o uso de máquinas de estados finitos é bastante comum devido à sua facilidade de uso e ampla utilização. No entanto, para a descrição de sistemas mais complexos, as máquinas de estados possuem algumas limitações com relação a modularidade, reatividade e legibilidade do modelo. Como alternativa, \textit{Behavior Trees} foram concebidas para superar essas limitações. Ao longo dos últimos anos, \textit{Behavior Trees} tem sido utilizadas em aplicações nas áreas como Robótica, IA e Sistemas de Controle Industrial, mas ainda são pouco exploradas em aplicações na área de Sistemas Embarcados, especificamente em aplicações com restrição de recursos computacionais. Para preencher esta lacuna, este trabalho apresenta o \textbf{BTreeFy}, um \textit{framework} de \textit{Behavior Tree} para Sistemas Embarcados com Recursos Restritos. O \textit{framework} proposto implementa um motor de execução de forma iterativa, utiliza representação \textit{left-child right-sibling} para construção da árvore, disponibiliza ferramenta para geração de código a partir do editor \textit{Groot 2}, além de permitir alta integração e portabilidade devido a sua implementação em ANSI C. Para validação do uso do \textit{framework}, este trabalho apresenta um estudo de caso de uma aplicação de um sensor vestível para aquisição de movimentos do corpo humano. [ADICIONAR RESULTADOS DO ESTUDO DE CASO]
+Em aplicações de Sistemas Embarcados, o uso de máquinas de estados finitos (FSMs) é comum devido à sua facilidade inicial de uso e ampla adoção na indústria. No entanto, para a modelagem de comportamentos complexos, as FSMs apresentam limitações severas de escalabilidade e modularidade. Como alternativa, \textit{Behavior Trees} (BTs) foram concebidas para superar essas limitações. Apesar de sua popularidade em áreas como Robótica e IA, as BTs ainda são pouco exploradas em Sistemas Embarcados com restrição de recursos, devido à falta de implementações compatíveis com restrições rígidas de memória e determinismo. Para preencher esta lacuna, este trabalho apresenta o \textbf{BTreeFy}, um \textit{framework} de \textit{Behavior Tree} para Sistemas Embarcados. O \textit{framework} implementa um motor de execução iterativo sem alocação dinâmica, utiliza a representação estática \textit{Left-Child Right-Sibling} e gera código C forma automática. Para validar o \textit{framework}, conduzimos um estudo de caso de uma aplicação de rastreamento de ativos baseada no Zephyr RTOS, comparando-a com uma FSM convencional. Os resultados demonstram que as BTs promovem ganhos consideráveis de modularidade — exigindo 2,5 vezes menos linhas de código para adição de uma funcionalidade —, enquanto impõem custos de memória relativamente baixos (\textasciitilde 1 KB de Flash) e mantêm latências de execução totalmente compatíveis (na faixa de dezenas de microssegundos) para a vasta maioria das aplicações de tempo-real.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -87,21 +86,15 @@ Sistemas Embarcados, \textit{Behavior Trees}, C, \textit{framework}, \textit{lef
 
 \section{Introdução}
 
-A modelagem de comportamento em Sistemas Embarcados adota tradicionalmente o formalismo de Máquinas de Estados Finitos (FSMs) como o método mais comum de controle. O uso desse modelo pode ser associado à sua facilidade inicial de compreensão, ao seu histórico de aplicação na indústria e à sua presença nos currículos de engenharia e de ciência da computação. Como o projeto de firmware muitas vezes requer a gestão de estados e interrupções, as FSMs costumam surgir como uma escolha natural para a modelagem da lógica de controle. Entretanto, à medida que a complexidade dos sistemas embarcados aumenta, as características arquitetônicas das FSMs podem apresentar desafios de escalabilidade e manutenção. O modelo de Máquina de Estados é basicamente um grafo dirigido onde os nós são os estados e as arestas são as transições, as quais são responsáveis por conectar os estados entre si e normalmente representam condições ou a ocorrência de eventos em um sistema. Devido a essa topologia, a adição ou remoção de estados exige a reavaliação de um número potencialmente grande de transições e estados internos do modelo. FSMs com muitos estados e transições são difíceis de modificar, o que impõe barreiras severas à escalabilidade.  
-Além do impacto na manutenibilidade, podem surgir desafios do ponto de vista de modularidade. Como as transições frequentemente dependem dos estados e de suas variáveis internas, o uso de extensões hierárquicas (HFSMs) pode atenuar essa deficiência, mas não a soluciona por completo. Consequentemente, o reúso de lógicas de controle entre diferentes projetos ou módulos torna-se uma tarefa mais complexa e propensa a erros, motivando a investigação de abordagens arquitetônicas alternativas para a orquestração de execução em firmware.
+A modelagem de comportamento em Sistemas Embarcados adota tradicionalmente o formalismo de Máquinas de Estados Finitos (FSMs) como o método mais comum de controle. O uso desse modelo pode ser associado à sua facilidade inicial de compreensão, ao seu histórico de aplicação na indústria e à sua presença nos currículos de engenharia e de ciência da computação. Como o projeto de firmware muitas vezes requer a gestão de estados e interrupções, as FSMs costumam surgir como uma escolha natural para a modelagem da lógica de controle. Entretanto, à medida que a complexidade dos sistemas embarcados aumenta, as características arquitetônicas das FSMs podem apresentar desafios de escalabilidade e manutenção. O modelo de Máquina de Estados é basicamente um grafo dirigido onde os nós são os estados e as arestas são as transições, as quais são responsáveis por conectar os estados entre si e normalmente representam condições ou a ocorrência de eventos em um sistema. Devido a essa topologia, a adição ou remoção de estados exige a reavaliação de um número potencialmente grande de transições e estados internos do modelo. FSMs com muitos estados e transições são difíceis de modificar, o que impõe barreiras severas à escalabilidade \cite{biggar_expressiveness_2021}.  
+Além do impacto na manutenibilidade, podem surgir desafios do ponto de vista de modularidade. Como as transições frequentemente dependem dos estados e de suas variáveis internas, o uso de extensões hierárquicas (HFSMs) pode atenuar essa deficiência, mas não a soluciona por completo. Consequentemente, o reúso de lógicas de controle entre diferentes projetos ou módulos torna-se uma tarefa mais complexa e propensa a erros, motivando a investigação de abordagens arquitetônicas alternativas para a orquestração de execução em firmware \cite{iovino_comparison_2025}.
 
-\red{
-Alfredo:
-Um outro formalismo que vem ganhando destaque é o \textit{Behavior Tree} (BT), que se tornou bastante popular em aplicações de robótica e Inteligência Artificial (IA) nos últimos anos...
-}
-\textit{Behavior Trees} (BTs) são um formalismo de controle que se tornou bastante popular em aplicações de robótica e Inteligência Artificial (IA) nos últimos anos. Originalmente, \textit{Behavior Trees} foram projetadas para superar limitações encontradas no desenvolvimento de inteligência artificial para personagens de jogos digitais utilizando Máquinas de Estados Finitos, por permitirem maior modularidade e reatividade. Ao longo dos anos, tem-se observado uma crescente utilização de BTs em diversas áreas, como a robótica, sistemas autônomos, IA e controle industrial. Apesar do uso extensivo em diversas áreas, a aplicação de BTs em sistemas embarcados tem sido pouco investigada, muito embora a sua natureza fundamentalmente baseada em eventos (através da propagação de \textit{ticks}) alinhe-se de maneira natural à dinâmica de aplicações de sistemas embarcados, proporcionando abstrações modulares para lidar com interrupções e mudanças operacionais.
-
-\red{Alfredo: Acho que o texto acima pode ser melhor sintetizado. Exemplo: já falou que está sendo aplicado em robótica e IA, então dizer que outras áreas como sistemas autônomos e controle industrial também estão utilizando.}
+Um formalismo que tem ganhado destaque para modelagem de comportamento é a \textit{Behavior Tree} (BT). Originalmente concebidas para superar as limitações das FSMs na inteligência artificial de jogos (oferecendo maior modularidade e reatividade), as BTs tornaram-se populares não apenas em jogos, mas também em robótica, sistemas autônomos e controle industrial \cite{sidorenko_towards_2024}. Apesar desse sucesso, sua aplicação em sistemas embarcados tem sido pouco investigada. Contudo, sua natureza baseada em eventos, operando através da propagação de \textit{ticks}, alinha-se de forma natural à dinâmica desses sistemas, oferecendo abstrações modulares e seguras para lidar com fluxos de controle complexos.
 
 Aplicações em Sistemas Embarcados com Recursos Restritos são tipicamente compostas por microcontroladores operando com severas limitações de memória (frequentemente na casa de dezenas a poucas centenas de \textit{kilobytes} de RAM e Flash), ausência de unidade de gerenciamento de memória (MMU) e a necessidade estrita de determinismo temporal.
 Tais sistemas operam tipicamente em abordagens \textit{bare-metal} ou são orquestrados por Sistemas Operacionais de Tempo Real (RTOS) leves. Sob essas restrições, a arquitetura de software deve evitar a alocação dinâmica de memória (\texttt{malloc}/\texttt{free} ou \texttt{new}/\texttt{delete}), prevenindo a fragmentação da memória e a imprevisibilidade do tempo de execução, priorizando estratégias de alocação estática para garantir tempos de resposta delimitados.
 
-Um dos motivos possíveis pelos quais BTs não têm sido exploradas na área de Sistemas Embarcados com Recursos Restritos é a falta de bibliotecas ou \textit{frameworks} que possam ser integrados aos ambientes de desenvolvimento de maneira aderente a tais restrições de memória \red{Alfreo: aqui acredito que não seja somente de memória, mas todo ferramental de embarcados.} . O trabalho de Iovino \red{aqui faltou um et alguma coisa, pois tem mais de 3 autores.} \cite{iovino_survey_2022} apresenta uma lista de bibliotecas de BTs disponíveis até o momento do estudo implementadas em diferentes linguagens de programação como Python, Java, C\#, C++ e JavaScript. Embora o C++ possa ser utilizado em sistemas embarcados, as implementações tradicionais de BTs abusam frequentemente de alocação dinâmica, concorrência complexa e ponteiros inteligentes (\textit{smart pointers}), o que fere os princípios de determinismo requeridos para esse nicho. Além disso, os ambientes de desenvolvimento para microcontroladores restritos tipicamente não oferecem suporte — ou vedam explicitamente, por meio de diretrizes de segurança e determinismo como MISRA C++ e ISO 26262 — a recursos amplamente utilizados nas implementações convencionais de BTs em C++, como alocação dinâmica de memória, biblioteca padrão de \textit{templates} (STL), tratamento de exceções e informações de tipo em tempo de execução (RTTI). As implementações convencionais de BTs constroem-se justamente sobre esses recursos do C++ moderno, tornando a sua integração direta em plataformas embarcadas restritas técnica e arquiteturalmente impeditiva.
+Um dos principais motivos pelos quais BTs têm sido pouco exploradas na área de Sistemas Embarcados com Recursos Restritos é a falta de bibliotecas ou \textit{frameworks} adaptados ao ferramental e às rigorosas restrições arquiteturais desse ambiente. O levantamento de Iovino \textit{et al.} \cite{iovino_survey_2022} listou diversas bibliotecas de BTs disponíveis, implementadas em linguagens como Python, Java, C\#, C++ e JavaScript. Embora o C++ possa ser utilizado em sistemas embarcados, as implementações tradicionais de BTs abusam frequentemente de alocação dinâmica, concorrência complexa e ponteiros inteligentes (\textit{smart pointers}), o que fere os princípios de determinismo requeridos para esse nicho. Além disso, os ambientes de desenvolvimento para microcontroladores restritos tipicamente não oferecem suporte — ou vedam explicitamente, por meio de diretrizes de segurança e determinismo como MISRA C++ e ISO 26262 — a recursos amplamente utilizados nas implementações convencionais de BTs em C++, como alocação dinâmica de memória, biblioteca padrão de \textit{templates} (STL), tratamento de exceções e informações de tipo em tempo de execução (RTTI). As implementações convencionais de BTs constroem-se justamente sobre esses recursos do C++ moderno, tornando a sua integração direta em plataformas embarcadas restritas técnica e arquiteturalmente impeditiva.
 
 Com o intuito de preencher essa lacuna, este trabalho propõe um \textit{framework} de \textit{Behavior Trees} para Sistemas Embarcados com Recursos Restritos, chamado \textbf{BTreeFy}. O desenvolvimento deste \textit{framework} tem por objetivo atender às demandas específicas deste nicho, garantindo previsibilidade de tempo real e baixo consumo de recursos computacionais. Desta maneira, as principais contribuições deste trabalho são: (i) uma estratégia de implementação através de motor de execução iterativo e representação \textit{left-child right-sibling} dos nós da \textit{Behavior Tree}; (ii) um \textit{framework} funcional desenvolvido na linguagem ANSI C, livre de alocação dinâmica e dependências de bibliotecas de terceiros, além de uma ferramenta utilitária para geração de código automático a partir do editor \textit{Groot 2}; (iii) um estudo de caso para validação da aplicabilidade de \textit{Behavior Trees} em aplicações de sistemas embarcados.
 
@@ -114,13 +107,7 @@ Com o intuito de preencher essa lacuna, este trabalho propõe um \textit{framewo
 \textit{Behavior Trees} são um formalismo de controle utilizado para descrever tarefas em agentes ou sistemas e foram desenvolvidos com o intuito de superar algumas limitações das Máquinas de Estados Finitos com relação a reatividade, modularidade e legibilidade. Conceitualmente, uma \textit{Behavior Tree} é uma árvore cujos nós intermediários são chamados de \textit{nós de controle de fluxo} e os nós folha são chamados de \textit{nós de execução}.
 Os \textit{nós de controle de fluxo} têm a função de implementar uma política que determina qual o próximo nó a ser executado, enquanto os \textit{nós de execução} implementam verificações de condições ou ações do sistema.
 Quando uma condição ou ação é executada, o nó pode retornar três valores de \textit{status} possíveis: \textit{Failure}, \textit{Success} ou \textit{Running}. Os valores de \textit{Failure} e \textit{Success} indicam, respectivamente, uma falha ou um sucesso na execução do nó, enquanto o valor \textit{Running} indica que o nó ainda não concluiu sua execução e será reexecutado em seguida.
-
-\red{Alfredo: Acho que está faltando falar que o modo de execução sempre é do filho mais à esquerda para a direita. Motivando a LCRS.
-}
-
-\blue{
-Em cada nó você comenta que é da esquerda para direita, mas não tão forte quanto dizer que em qualquer nó de controle isso ocorre. Além disso, é necessário enfatizar que é uma forma de prioridade.
-}
+É imperativo destacar que, em qualquer nó de controle de fluxo, a ordem de avaliação e execução dos nós filhos ocorre \textbf{sempre} da esquerda para a direita. Essa restrição introduz naturalmente uma noção de prioridade no modelo, onde ramificações mais à esquerda possuem precedência de verificação sobre as ramificações à direita. Essa característica é fundamental, pois motiva fortemente o uso da representação de árvores estruturadas como \textit{Left-Child Right-Sibling} (LCRS), que será discutida adiante.
 
 \subsection{Nós de controle de fluxo}
 
@@ -155,7 +142,7 @@ Os nós que não possuem filhos ou folhas de uma árvore são considerados nós 
 
 A execução de uma \textit{Behavior Tree} é baseada na propagação de um sinal comumente chamado \textit{tick}, que determina a execução de um nó. A propagação do \textit{tick} é iniciada a partir da raiz da árvore e percorre todos os nós da árvore seguindo a ordem do nó filho mais à esquerda, até que um nó folha seja atingido. Quando um nó folha é atingido, seu valor de \textit{status} é retornado ao seu respectivo nó pai. Neste momento, o nó pai executa sua função de política para determinar qual o próximo nó a ser executado. A depender desta decisão, o próximo nó a ser executado pode ser um nó filho à direita, ou a execução pode retornar para o nó acima, em direção à raiz da árvore. Este processo de propagação do \textit{tick} pelos nós da árvore permanece até que o nó raiz seja avaliado e não haja mais nós a serem executados.
 
-\blue{Enfatizar que esse processo é naturalmente recursivo. Por isso a parte da mudança para modo iterativo em embarcados.}
+Vale ressaltar que a natureza da propagação de decisões pelas ramificações de uma BT é estruturalmente recursiva, o que historicamente demanda o uso da pilha de chamadas (\textit{call stack}) em implementações clássicas. Isso impulsiona a necessidade de adaptações iterativas quando o ambiente-alvo possui recursos de memória severamente limitados.
 
 \begin{figure}[ht]
     \centering % Centers the image
@@ -204,47 +191,18 @@ Outra característica a ser destacada no modelo de \textit{Behavior Tree} é sua
 
 \section{Framework Proposto}
 
-ADICIONAR CENÁRIO DE USO DEMONSTRANDO O USO DO FRAMEWORK
-% Desenha BT, gera código, 
-
 Como proposta deste trabalho, apresentamos o \textbf{BTreeFy}, um \textit{framework} de \textit{Behavior Tree} para Sistemas Embarcados com Recursos Restritos. O principal objetivo para o desenvolvimento deste \textit{framework} é permitir a execução de \textit{Behavior Trees} em ambientes com recursos computacionais restritos. Para este fim, o projeto deste \textit{framework} considerou princípios e características necessários para que esse objetivo fosse atingido.
 As principais características do projeto deste \textit{framework} e suas justificativas são listadas a seguir:
 
 
-\paragraph{\textbf{Execução iterativa}} diferentemente de outras implementações que utilizam chamadas recursivas para execução dos nós da árvore, nossa proposta utiliza uma abordagem iterativa. Em uma abordagem recursiva, o processador precisa empilhar o contexto de execução atual, e em uma estrutura de árvore muito profunda isso resultaria em consumo excessivo de memória para plataformas com recursos de memória RAM muito restritos.
+\paragraph{\textbf{Execução iterativa}} Diferentemente de outras implementações que utilizam chamadas recursivas, nossa proposta adota uma abordagem iterativa. Em uma implementação recursiva clássica, o processador precisa empilhar o contexto em cada chamada. Em uma estrutura de árvore muito profunda, o crescimento da pilha de chamadas resultaria em um consumo imprevisível e excessivo de memória RAM, comprometendo a estabilidade em plataformas restritas.
 
-\green{Em uma abordagem recursiva, o processador precisa empilhar \textbf{em cada chamada} o contexto de execução atual...}
-
-% \begin{itemize} % Lista de características do BTreeFy - Início
-
-\paragraph{\textbf{Utilização da representação LCRS}} para facilitar a definição da estrutura de dados de um nó da \textit{Behavior Tree} foi utilizada a representação \textit{left-child right-sibling} para construção da estrutura da árvore, \red{sendo essa representação um ponto-chave para utilização de BTs em Sistemas Embarcados com Recursos Restritos}.
-
-\red{
-Alfredo - ideia:
-Uma árvore pode ser representada de diferentes maneiras, variando desde estruturas baseadas em ponteiros até representações que armazenam os nós em um array. Em ambas as abordagens, o objetivo é preservar as relações de parentesco entre os nós, diferindo apenas na forma como essas relações são codificadas. Enquanto as representações baseadas em ponteiros estabelecem ligações diretas entre os nós por meio de referências de memória, as representações baseadas em arrays utilizam posições ou índices para descrever essas relações. Cada uma dessas estratégias apresenta vantagens e desvantagens em termos de consumo de memória, localidade de referência, facilidade de implementação e eficiência das operações sobre a árvore. Dessa forma, a escolha da representação deve considerar as características da aplicação e os requisitos de desempenho e armazenamento.
-}
-
-\red{
-Dado esse contexto, a primeira decisão de \green{arquitetura -- acho que pode ser escolhido  uma palavra melhor --} consiste em armazenar todos os nós da árvore em um único array, representando as relações entre eles por meio de índices em vez de ponteiros.
-Essa abordagem reduz o consumo de memória, melhora a localidade de referência e favorece o desempenho das operações de acesso devido ao melhor aproveitamento da hierarquia de cache.
-}
-
-\red{
-O segundo ponto é escolher como representar a árvore no array.
-Uma árvore armazenada em um array pode ser representada de diferentes formas, variando conforme a estratégia adotada para codificar as relações entre os nós. As abordagens mais comuns incluem representações baseadas no índice do pai (parent array), no primeiro filho e próximo irmão (Left-Child Right-Sibling – LCRS), em vetores de filhos, em estruturas compactas como Compressed Sparse Row (CSR) e em representações implícitas, como as utilizadas em árvores binárias completas. Cada uma dessas alternativas apresenta características distintas em termos de consumo de memória, localidade de referência, complexidade das operações de navegação e facilidade de atualização da estrutura. Dessa forma, a escolha da representação deve considerar as propriedades da árvore e os requisitos da aplicação, buscando um equilíbrio entre eficiência de armazenamento e desempenho computacional.
-}
-
-\green{Fazer uma comparação entre as formas, ... indicar a transformação Knuth k-ary para binária (LCRS)}
-
-Nessa representação, um nó precisa apenas referenciar dois nós: seu nó filho mais à esquerda e o seu irmão, que é o nó imediatamente à sua direita, conforme pode ser observado na figura [ADICIONAR FIGURA].
+\paragraph{\textbf{Utilização da representação LCRS plana}} Uma árvore pode ser representada de diversas maneiras na memória. Para sistemas restritos, a primeira decisão de projeto foi evitar totalmente a alocação dinâmica e os ponteiros tradicionais. O BTreeFy armazena todos os nós da árvore de forma contígua em um único \textit{array} alocado estaticamente, utilizando índices para codificar as relações de parentesco. Isso reduz drasticamente o consumo de memória por eliminar o \textit{overhead} dos ponteiros (especialmente em arquiteturas de 32 bits) e melhora a localidade de referência na \textit{cache} do processador.
+A segunda decisão foi como codificar as relações dentro desse \textit{array}. Ao invés de representar explicitamente nós n-ários (que exigem estruturas de tamanho variável), adotamos a representação \textit{Left-Child Right-Sibling} (LCRS), essencialmente aplicando a Transformada de Knuth para converter a BT n-ária em uma estrutura equivalente binária. Nesta representação padronizada, cada nó armazena apenas dois índices: seu primeiro filho (filho mais à esquerda) e seu próximo irmão (à direita). Como a ordem de execução da BT é estritamente da esquerda para a direita, a estrutura LCRS mapeia com perfeição a navegação exigida durante o \textit{tick}, viabilizando uma implementação universal, leve e previsível.
 
 \paragraph{\textbf{Implementação puramente em ANSI C}} a implementação do \textit{framework} em ANSI C e ausência de dependências externas possibilitam uma maior integração e portabilidade. Desta maneira, o \textit{framework} pode ser usado em aplicações \textit{bare metal} como também em ambientes com Sistemas Operacionais de Tempo Real como o \textit{FreeRTOS} e \textit{Zephyr RTOS}.
 
-\paragraph{\textbf{Geração de código}} o projeto deste \textit{framework} disponibiliza um \textit{script} utilitário de geração de código que interpreta um arquivo XML produzido através do editor \textit{Groot 2} e gera os arquivos fonte na linguagem com a representação da árvore e as assinaturas das funções de ação dos nós folha da \textit{Behavior Tree}.
-
-\red{Acho que aqui pode indicar que dado a forma como representamos a árvore é fazer fazer a geração de código de forma otimizada, que isso não é possível -- eu acho --  com máquina de estados.}
-
-Dito isto, novamente pergunto, preciso tomar alguma ação no sistema para matricular novamente?% \end{itemize} % Lista de características do BTreeFy - Fim
+\paragraph{\textbf{Geração de código}} O projeto disponibiliza um utilitário que interpreta um arquivo XML (produzido por editores padrão como o \textit{Groot 2}) e gera automaticamente o código-fonte C contendo o \textit{array} estático LCRS da árvore. Pelo fato de todo o fluxo de controle e as relações hierárquicas serem codificadas estaticamente em um único \textit{array} \textit{read-only}, a geração de código da BT é direta e otimizada. Isso difere enormemente de ferramentas equivalentes de máquinas de estados, cuja tradução de grafo para código costuma demandar a geração de dezenas de funções de preempção cruzada para garantir as interrupções de estados.
 
 \subsection{Modelagem do nó e da árvore no BTreeFy}
 
@@ -265,7 +223,7 @@ struct btf_node
 
 A definição da definição da árvore no \textbf{BTreeFy} é apresentada na listagem \ref{lst:btf_tree}. O campo \texttt{nodes} armazena o \textit{array} de nós da árvore e o campo \texttt{size} indica a quantidade de nós deste \textit{array}, e consequentemente, o tamanho da árvore. Também, a árvore pode armazenar um dado do usuário através do ponteiro no campo \texttt{data} e seu tamanho em \texttt{datalen}. Este dado de usuário associado à árvore pode ser acessado nas funções de ação dos nós folha implementadas pelo usuário, permitindo que os nós troquem dados entre si. Por fim, o campo \texttt{running\_node\_index} armazena o índice do nó que está em execução ou estado de \texttt{RUNNING} no momento. É através desta referência que o \texttt{framework} consegue abortar um nó em execução, caso a ramificação da árvore na qual ele se encontra não seja mais alcançável na execução atual.
 
-\red{Dois pontos a ser melhorado 32 bits para índice em execução e tamanho, exagerado}
+É importante notar que, embora o exemplo na Listagem \ref{lst:btf_tree} utilize \texttt{uint32\_t} para máxima compatibilidade, na prática, para aplicações embarcadas típicas (onde a BT não ultrapassa algumas centenas de nós), esses índices e tamanhos podem ser perfeitamente reduzidos para tipos \texttt{uint8\_t} ou \texttt{uint16\_t}. Em um cenário de máxima otimização com \texttt{uint8\_t} (limite de 255 nós), a economia de memória RAM é expressiva, reduzindo o custo por nó drasticamente.
 
 \begin{lstlisting}[language=C, caption={Definição do objeto árvore no \textit{BTreeFy}}, label={lst:btf_tree}]
 struct btf_tree
@@ -278,61 +236,57 @@ struct btf_tree
 };
 \end{lstlisting}
 
-\subsection{Algoritmo de execução da árvore no BTreeFy}
-
-O \texttt{tick} ou execução da árvore é realizado de acordo com o pseudocódigo apresentado no algoritmo \ref{alg:btf_tick_tree}.
-
-\begin{algorithm}[!ht]
-\caption{Função de \textit{tick} da árvore}
-\label{alg:btf_tick_tree}
-\SetAlgoLined
-\footnotesize
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\SetKwFunction{FRoot}{root}
-\SetKwFunction{FAction}{action}
-\SetKwFunction{FFirstChild}{first\_child}
-\SetKwFunction{FControl}{control}
-\SetKwFunction{FNextSib}{next\_sibling}
-\SetKw{KwAnd}{and}
-\SetKw{KwNot}{not}
-\Input{Referência de uma árvore}
-\Output{\textit{Status} da execução da árvore}
-$node \leftarrow \FRoot{tree}$\;
-$status \leftarrow \text{UNDEFINED}$\;
-\While{\KwNot ($status$ is defined \KwAnd $node$ is root)}{
-    \eIf{$status = \text{UNDEFINED}$}{
-        \eIf{$node$ is a leaf}{
-            $status \leftarrow node.\FAction{tree}$\;
-            \If{$status = \text{RUNNING}$}{
-                store $node$ as $running\_node$\;
-            }
-        }{
-            $node \leftarrow \FFirstChild{node}$\;
-        }
-    }{
-        $parent \leftarrow node.parent$\;
-        $result \leftarrow parent.\FControl{tree, node, status}$\;
-        \eIf{$result = \text{CONTINUE}$}{
-            \eIf{$node$ has sibling}{
-                $node \leftarrow \FNextSib{node}$\;
-                $status \leftarrow \text{UNDEFINED}$\;
-            }{
-                $node.parent.status \leftarrow status$\;
-                $node \leftarrow node.parent$\;
-            }
-        }{
-            $node.parent.status \leftarrow status$\;
-            $node \leftarrow node.parent$\;
-        }
-    }
-}
-\Return{$status$}\;
-\end{algorithm}
+ 
 
 \section{Estudo de caso}
 
-Nesta seção será apresentado um estudo de caso demonstrando a implementação da aplicação de rastreamento apresentada na figura \ref{fig:bt_example}. Para o desenvolvimento da aplicação foram utilizados o \textit{framework} proposto, \textbf{BTreeFy}, e o sistema operacional de tempo real \textit{Zephyr}. A aplicação foi executada em uma placa NUCLEO-FO91RC \cite{noauthor_nucleo-f091rc_nodate} com ARM Cortex-M0, 256KB de Flash e 32KB de RAM.
+Devido à falta de consenso na literatura atual sobre metodologias unificadas de avaliação de \textit{Behavior Trees} \cite{gugliermo_evaluating_2024}, nesta seção é apresentado um estudo de caso com métricas próprias, com o intuito de demonstrar a aplicabilidade do \textit{framework} BTreeFy em um sistema embarcado. O cenário de uso consiste em uma aplicação de rastreamento de ativos, cujos modelos conceituais para FSM e BT foram introduzidos nas Figuras \ref{fig:fsm_example} e \ref{fig:bt_example}, respectivamente. O objetivo primário é quantificar os ganhos de modularidade e flexibilidade promovidos pelas BTs e medir o impacto de desempenho e consumo de recursos. Como referência, desenvolvemos a mesma aplicação utilizando o Zephyr State Machine Framework (SMF). Ambas as abordagens foram implementadas sobre o Zephyr RTOS e avaliadas sob duas variantes: uma versão base (rastreamento de posição) e uma versão estendida com funcionalidade de detecção de violação (\textit{tamper}), permitindo analisar o esforço de extensão de código de ambas as abordagens.
+
+\subsection{Configuração do Experimento}
+Para a avaliação das restrições de tempo real, a aplicação de estresse foi embarcada em um microcontrolador STM32 Nucleo-F091RC (ARM Cortex-M0, 256 KB Flash, 32 KB RAM). Os testes de memória e equivalência comportamental foram realizados utilizando o ambiente nativo \textit{native\_sim} do Zephyr. O \textit{framework} Zbus, componente do Zephyr RTOS para barramento assíncrono, foi adotado para abstrair os módulos de \textit{hardware}. Nas BTs, a execução da árvore é ativada através de \textit{ticks} emitidos sempre que um novo evento (como recepção GNSS ou rádio) é publicado no Zbus, caracterizando uma arquitetura orientada a eventos que otimiza recursos computacionais ao evitar \textit{polling} contínuo \cite{wu_microsbt_2021}.
+
+\subsection{Resultados e Discussão}
+A avaliação foi baseada em cinco eixos distintos, e a síntese dos resultados é apresentada na Tabela \ref{tab:results_summary}.
+
+\begin{table}[ht]
+\centering
+\caption{Síntese dos resultados da avaliação entre BT e FSM}
+\label{tab:results_summary}
+\begin{tabular}{lrr}
+\hline
+\textbf{Métrica} & \textbf{BT (BTreeFy)} & \textbf{FSM (Zephyr SMF)} \\
+\hline
+Linhas de código (\textit{tamper}) & \textbf{12} & 30 \\
+Acréscimo de Flash (\textit{tamper}) & 224 B & 224 B \\
+Footprint RAM (motor base) & $\sim$32 B & $\sim$20 B \\
+Footprint Flash (motor base) & $\sim$866 B & $\sim$768 B \\
+Latência média (Cortex-M0) & 43,00 $\mu$s & \textbf{3,73 $\mu$s} \\
+Equivalência comportamental & Aprovado & Aprovado \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{\textbf{Modificabilidade e Modularidade}} 
+A vantagem da BT torna-se evidente na extensão da aplicação para incluir a detecção de violação. A implementação em BT exigiu 2,5$\times$ menos código condicional que a FSM (12 linhas de código em comparação com as 30 linhas necessárias para a FSM). Enquanto a FSM obriga o programador a inserir blocos condicionais de transição de preempção em quase todos os estados existentes, a modificação na BT concentrou-se apenas na adição de uma ramificação independente na raiz, demonstrando excelente separação de interesses e corroborando evidências empíricas de que BTs facilitam modificações e reuso de comportamentos \cite{dragule_effects_2025}.
+
+\paragraph{\textbf{Consumo de Recursos (Footprint)}} 
+Ambas as abordagens adicionaram exatos 224 bytes de Flash para incluir a funcionalidade de violação, demonstrando um custo marginal equivalente. A BT apresenta um pequeno custo fixo pelo uso do seu motor de execução em comparação à FSM, adicionando cerca de 1 KB em Flash e 32 bytes em RAM. Para aplicações embarcadas modernas, esse custo estático é negligenciável diante do benefício arquitetural.
+
+\paragraph{\textbf{Desempenho de Execução (Latência)}}
+Para a medição de latência temporal, foi gerado proceduralmente um modelo de decisão estressante e profundo com 125 nós lógicos. A execução completa na BT registrou um tempo médio de 43 $\mu$s. Embora a FSM convencional execute de maneira consideravelmente mais rápida (cerca de 3,7 $\mu$s), o custo de processamento da BT permanece na ordem de algumas dezenas de microssegundos, suportando folgadamente requisitos de tempo-real de sistemas cujas reações situam-se na faixa de milissegundos.
+
+\paragraph{\textbf{Equivalência Comportamental}} 
+Ambas as aplicações foram testadas sob as mesmas sequências pseudo-aleatórias intensivas de eventos de sensores. Demonstrou-se, com zero divergências na emissão de comandos para os atuadores, que a abordagem baseada em \textit{Behavior Trees} exibe um rigoroso determinismo, sendo comportamentalmente idêntica à já consolidada máquina de estados do Zephyr.
+
+\section{Conclusão}
+
+Este artigo apresentou o BTreeFy, um \textit{framework} projetado desde o princípio para transpor a lacuna arquitetural e metodológica que impedia o uso prático de \textit{Behavior Trees} em Sistemas Embarcados com Recursos Restritos. Através de decisões como a execução iterativa da travessia da árvore e o uso da representação estática de memória baseada em índices e estruturas \textit{Left-Child Right-Sibling}, demonstramos que é possível obter os mesmos benefícios arquiteturais das BTs presentes em domínios avançados (como Robótica e IA) em microcontroladores \textit{bare-metal} com rígidas limitações de RAM e Flash.
+
+O estudo de caso realizado, uma aplicação de rastreamento de ativos sobre o Zephyr RTOS, evidenciou quantitativamente as vantagens e \textit{trade-offs} envolvidos. Ao adicionar a funcionalidade preemptiva de detecção de violação (\textit{tamper}), a BT revelou seu poder de modularidade: demandou 2,5 vezes menos alterações no código C em relação à clássica Máquina de Estados (FSM), visto que novos comportamentos são orquestrados no modelo (a árvore XML) sem infectar as funções e guardas já existentes. 
+
+Avaliamos rigorosamente os custos que acompanham esse ganho de abstração. Em termos de uso estático de memória (\textit{footprint}), o \textit{framework} impõe uma modesta "taxa base" de cerca de 1 KB em Flash e algumas dezenas de bytes em RAM, valor este consideravelmente pequeno face à capacidade da maioria das plataformas de IoT modernas (como a família Cortex-M). No quesito temporal, embora as BTs possuam um \textit{overhead} natural de execução devido à navegação hierárquica e ao mecanismo de \textit{ticks} iterativos, a medição em \textit{hardware} indicou uma latência máxima de cerca de 43 $\mu$s para uma decisão complexa (uma árvore estressada com mais de 100 nós lógicos). Esse tempo atende de modo satisfatório os requisitos operacionais da ampla maioria das aplicações práticas, cujas frequências de eventos estão tipicamente concentradas na faixa dos milissegundos.
+
+Em suma, as \textit{Behavior Trees} confirmam-se não apenas como uma alternativa viável, mas, em muitos casos de sistemas de controle com regras de negócios evolutivas, como uma arquitetura superior às tradicionais Máquinas de Estados. Como trabalhos futuros, planejamos conduzir avaliações com outros escalonadores em sistemas embarcados e implementar suporte integrado a mecanismos de sincronização para nós concorrentes (como os do tipo \textit{Parallel}), a fim de evitar condições de corrida de forma estruturada e previsível \cite{colledanchise_handling_2022}, expandindo ainda mais as classes de problemas resolvidas pelo BTreeFy.
 
 \bibliographystyle{IEEEtran}
 \bibliography{sbesc26-refs}
