@@ -11,7 +11,7 @@ imagem, então qualquer número no PNG rastreia direto pra um resultado real.
 Saída:
     results/report_table.png — tabela BT × FSM
     results/report_chart.png — 4 painéis: GED, custo estrutural do tamper
-                                (LOC em #ifdef), CC do grafo de decisão,
+                                (SLOC em #ifdef), CC do grafo de decisão,
                                 divergências do oráculo por classe
 """
 

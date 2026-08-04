@@ -13,3 +13,7 @@ results/
 # Python cache & environment lock files
 *.pyc
 uv.lock
+
+# Auto-generated stress test artifacts
+models/stress_bt.xml
+tests/stress_app/

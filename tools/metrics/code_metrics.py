@@ -55,36 +55,39 @@ def cloc_sloc(path: Path) -> int:
 
 
 def count_tamper_ifdef_sloc(path: Path) -> int:
-    """True SLOC inside #ifdef CONFIG_TRACKER_WITH_TAMPER ... #endif using cloc.
+    """True SLOC added by CONFIG_TRACKER_WITH_TAMPER using unifdef + cloc.
 
-    Extracts the #ifdef blocks into a temporary C file and runs cloc on it
-    to ensure comments are stripped correctly by the tool.
+    Uses unifdef to generate versions of the file with and without the feature,
+    and returns the difference in SLOC. This is the academic gold standard for
+    measuring feature size in conditional compilation.
     """
-    code = path.read_text()
-    depth = 0
-    ifdef_lines = []
-    
-    for line in code.splitlines():
-        if _IFDEF_RE.match(line):
-            depth += 1
-            continue
-        if depth > 0 and _ENDIF_RE.match(line):
-            depth -= 1
-            continue
-        if depth > 0:
-            ifdef_lines.append(line)
-            
-    if not ifdef_lines:
+    if not path.exists():
         return 0
-        
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".c", delete=False) as f:
-        f.write("\n".join(ifdef_lines))
-        temp_path = Path(f.name)
-        
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".c", delete=False) as f_with:
+        # Exit code 1 means changes were made, 0 means no changes. Both are fine.
+        subprocess.run(
+            ["unifdef", "-DCONFIG_TRACKER_WITH_TAMPER", str(path)], 
+            stdout=f_with,
+            check=False
+        )
+        path_with = Path(f_with.name)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".c", delete=False) as f_without:
+        subprocess.run(
+            ["unifdef", "-UCONFIG_TRACKER_WITH_TAMPER", str(path)], 
+            stdout=f_without,
+            check=False
+        )
+        path_without = Path(f_without.name)
+
     try:
-        return cloc_sloc(temp_path)
+        sloc_with = cloc_sloc(path_with)
+        sloc_without = cloc_sloc(path_without)
+        return max(0, sloc_with - sloc_without)
     finally:
-        temp_path.unlink(missing_ok=True)
+        path_with.unlink(missing_ok=True)
+        path_without.unlink(missing_ok=True)
 
 
 def count_total_sloc(path: Path) -> int:

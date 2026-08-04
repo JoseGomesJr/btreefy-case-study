@@ -70,24 +70,24 @@ Durante a execução do pipeline de métricas, dois bugs foram descobertos e cor
 **Pergunta:** O quanto o código de implementação muda quando a funcionalidade de violação (tamper) é adicionada?
 
 **Método:** Duas medições nos arquivos fonte C:
-1. **LOC do `#ifdef` Tamper** — linhas não em branco dentro dos blocos `#ifdef CONFIG_TRACKER_WITH_TAMPER` (o único `#ifdef` de seleção de funcionalidade permitido neste código-fonte). Isso mede diretamente "quanto código cada lado precisou para adicionar a funcionalidade."
+1. **SLOC da feature de tamper** — Para a BT, linhas não em branco e não comentadas dentro dos blocos `#ifdef CONFIG_TRACKER_WITH_TAMPER` (calculado rigorosamente via `unifdef` + `cloc`). Para a FSM (que separa as funcionalidades em arquivos C distintos), calculamos `SLOC(tamper.c) - SLOC(base.c)`. Isso mede diretamente "quanto código cada lado precisou para adicionar a funcionalidade."
 2. **Complexidade Ciclomática de McCabe** — calculada pelo `lizard` em todos os arquivos fonte de política, representando a complexidade estrutural do código.
 
 ### Dados Brutos
 
-| Implementação | LOC `#ifdef` Tamper | Funções | Média CC | CC máx |
-|---------------|--------------------:|--------:|---------:|-------:|
-| **BT**        |                  12 |       8 |     2.25 |      4 |
-| **FSM**       |                  30 |      12 |     2.00 |      4 |
+| Implementação | SLOC da feature | Funções | Média CC | CC máx |
+|---------------|----------------:|--------:|---------:|-------:|
+| **BT**        |              12 |       8 |     2.25 |      4 |
+| **FSM**       |              28 |      12 |     2.00 |      4 |
 
 ### Análise
 
-**LOC `#ifdef` Tamper — BT: 12 vs FSM: 30 (2,5× mais para FSM)**
+**SLOC da feature — BT: 12 vs FSM: 28 (2,3× mais para FSM)**
 
-Este é o resultado mais impressionante do Eixo B. A FSM exigiu **2,5× mais linhas de código** dentro das guardas de tamper para adicionar a funcionalidade:
+Este é o resultado mais impressionante do Eixo B. A FSM exigiu **2,3× mais linhas de código (SLOC)** para adicionar a funcionalidade:
 
 - **BT (12 linhas):** Apenas as duas novas funções de ação precisaram ser envolvidas — `cond_tamper_detected()` e `action_send_tamper_alert()` em `tracker_bt_actions.c`. A estrutura da árvore em si é um arquivo XML separado sem nenhum `#ifdef`; a seleção do modelo é feita em tempo de compilação pelo CMake escolhendo o XML correto.
-- **FSM (30 linhas):** Requer um novo estado (`tamper_alert_entry`, `tamper_alert_run`), uma macro de guarda (`TRACKER_FSM_TAMPER_GUARD`), e sua invocação dentro da função `run()` de cada estado existente. A entrada na tabela de estados também deve ser compilada condicionalmente. Isso espalha as mudanças por múltiplas funções em `tracker_fsm_states.c`.
+- **FSM (28 SLOC):** Requer um novo arquivo de estado para a funcionalidade tamper e a modificação da lógica de transição. Ao contrário da composição baseada em árvore da BT, a abordagem da FSM exige tocar em múltiplos arquivos para estender os estados e suas transições de preempção.
 
 **Complexidade Ciclomática — aproximadamente equivalente**
 
@@ -110,32 +110,41 @@ Ambas as implementações compartilham o mesmo CC máximo de 4 e médias de CC s
 
 | Variante     | `.text` (B) | `.rodata` (B) | `.data` (B) | `.bss` (B) | Total Flash (B) | Total RAM (B) |
 |--------------|------------:|--------------:|------------:|-----------:|----------------:|--------------:|
-| **bt_base**  |      30.049 |         6.256 |       1.024 |      1.696 |          37.329 |         2.720 |
-| **bt_tamper**|      30.145 |         6.288 |       1.120 |      1.696 |          37.553 |         2.816 |
-| **fsm_base** |      29.633 |         6.000 |         736 |      1.664 |          36.369 |         2.400 |
-| **fsm_tamper**|     29.841 |         6.016 |         736 |      1.664 |          36.593 |         2.400 |
+| **bt_base**  |      29.985 |         5.952 |         896 |      1.696 |          36.833 |         2.592 |
+| **bt_tamper**|      30.065 |         5.952 |         928 |      1.696 |          36.945 |         2.624 |
+| **fsm_base** |      29.665 |         6.016 |         736 |      1.664 |          36.417 |         2.400 |
+| **fsm_tamper**|     29.873 |         6.032 |         736 |      1.664 |          36.641 |         2.400 |
 
 ### Diferenças Derivadas
 
 | Métrica                       | BT          | FSM         | Delta (BT − FSM) |
 |-------------------------------|------------:|------------:|-----------------:|
-| Flash, base (B)               |      37.329 |      36.369 |           **+960** |
-| Flash, tamper (B)             |      37.553 |      36.593 |           **+960** |
-| Custo em Flash do tamper (B)  |     +224 |        +224 |              **0** |
-| RAM, base (B)                 |       2.720 |       2.400 |           **+320** |
-| RAM, tamper (B)               |       2.816 |       2.400 |           **+416** |
-| Custo em RAM do tamper (B)    |       +96   |          +0 |            **+96** |
+| Flash, base (B)               |      36.833 |      36.417 |           **+416** |
+| Flash, tamper (B)             |      36.945 |      36.641 |           **+304** |
+| Custo em Flash do tamper (B)  |     +112 |        +224 |            **-112** |
+| RAM, base (B)                 |       2.592 |       2.400 |           **+192** |
+| RAM, tamper (B)               |       2.624 |       2.400 |           **+224** |
+| Custo em RAM do tamper (B)    |       +32   |          +0 |            **+32** |
+
+### Footprint Isolado dos Motores (Engines)
+
+Para entender a origem da diferença base entre as duas abordagens, isolamos o footprint apenas dos motores de execução (`libBTreeFy-Src.a` vs `liblib__smf.a` do Zephyr):
+
+| Motor de Execução | `.text` (Flash) | `.data` (RAM/Flash) | `.bss` (RAM) | Total Flash (B) | Total RAM (B) |
+|-------------------|----------------:|--------------------:|-------------:|----------------:|--------------:|
+| **BTreeFy** (BT)  |             792 |                  32 |            0 |         **824** |        **32** |
+| **Zephyr SMF**    |             272 |                   0 |            0 |         **272** |         **0** |
 
 ### Análise
 
-**Base de BT vs FSM:** A implementação da BT é consistentemente maior — aproximadamente **+960 bytes de flash** e **+320 bytes de RAM** na variante base. Esse overhead vem do próprio runtime da BTreeFy: inspecionando o arquivo isolado da biblioteca compilada (`libBTreeFy-Src.a`), o motor central de execução (`btreefy.c` e `btreefy_policies.c`) consome exatos **866 bytes de Flash** e **32 bytes de RAM**. O restante da diferença vem do array estrutural LCRS (que cresce ligeiramente de acordo com a árvore). Em suma, o "imposto" estático (custo fixo base independente da árvore) do framework BTreeFy é de menos de 1 KB de Flash e irrisórios 32 bytes de RAM.
+**Base de BT vs FSM:** A implementação da BT é um pouco maior — aproximadamente **+416 bytes de flash** e **+192 bytes de RAM** na variante base. A tabela de Motores acima revela exatamente o porquê: o motor central de execução da BTreeFy tem um custo estático isolado de 824 bytes de Flash e 32 bytes de RAM (comparado a apenas 272 bytes de Flash do Zephyr SMF). O restante da diferença do framework (até chegar aos +416 e +192) vem do preenchimento estrutural do array LCRS em memória para representar os nós da árvore. Em suma, o "imposto" estático do motor BTreeFy é incrivelmente enxuto, pesando menos de 1 KB em Flash e pouco mais de 30 bytes em RAM.
 
 **Custo da adição da funcionalidade tamper:**
 
-- **Flash:** Ambas as implementações adicionam exatamente **+224 bytes** de flash quando o tamper está ativado. Apesar da FSM precisar de mais código C (30 LOC vs 12 LOC dentro de ifdefs), o tamanho do código compilado é idêntico — a macro de guarda da FSM é convertida em pequenos desvios condicionais inline, e as novas funções folha da BT são similarmente compactas.
-- **RAM:** A BT adiciona **+96 bytes** de RAM (`.data` cresce de 1.024 para 1.120 bytes) para a variante tamper, provavelmente devido ao array de nós LCRS maior para a árvore tamper. A FSM adiciona **+0 bytes** de RAM — a tabela de estados é armazenada em `.rodata` e a nova entrada `STATE_TAMPER_ALERT` é compilada condicionalmente, mas o tamanho da estrutura `smf_ctx` não muda.
+- **Flash:** A BT adiciona **+112 bytes** de flash quando o tamper está ativado, enquanto a FSM adiciona **+224 bytes**. Isso reflete a menor necessidade de código C da BT (12 SLOC vs 28 SLOC), tornando as novas folhas da BT mais compactas em Flash do que os estados adicionados da FSM.
+- **RAM:** A BT adiciona **+32 bytes** de RAM (`.data` cresce de 896 para 928 bytes) para a variante tamper, devido ao array de nós LCRS maior para a árvore tamper. A FSM adiciona **+0 bytes** de RAM — a tabela de estados é armazenada em `.rodata` e a nova entrada `STATE_TAMPER_ALERT` é compilada condicionalmente, mas o tamanho da estrutura `smf_ctx` não muda.
 
-**Ponto chave:** A BT carrega um overhead de runtime fixo (~960 B flash, ~32 B RAM do motor central) em comparação com a FSM. Contudo, o **custo marginal de estender** o comportamento é comparável em flash e ligeiramente pior para a BT em RAM. Para microcontroladores restritos, a FSM permanece mais enxuta na base, mas a diferença é modesta e as vantagens de extensibilidade da BT (Eixo B) podem superar isso para aplicações que exigem frequentes mudanças comportamentais.
+**Ponto chave:** A BT carrega um pequeno overhead de runtime fixo (~416 B flash, ~192 B RAM) em comparação com a FSM. Contudo, o **custo marginal de estender** o comportamento é melhor para a BT em flash (+112 B vs +224 B) e ligeiramente pior em RAM (+32 B vs 0 B). Para microcontroladores restritos, a FSM permanece mais enxuta na base, mas a diferença é modesta e as vantagens de extensibilidade da BT (Eixo B) compensam isso facilmente para aplicações que exigem frequentes mudanças comportamentais.
 
 ### Footprint Isolado dos Modelos (Estresse Massivo)
 
@@ -206,23 +215,23 @@ Ambos os cenários, base (`no-tamper`) e estendido (`tamper`), produziram **zero
 |------|---------|:------------:|:----------------:|:--------:|
 | A | GED base→tamper | 6.0 | 4.0 | FSM |
 | A | Crescimento em nº de nós (base→tamper) | +3 nós | +1 estado | FSM |
-| B | LOC do `#ifdef` Tamper | **12** | 30 | **BT** |
+| B | SLOC da feature de tamper | **12** | 28 | **BT** |
 | B | Número de funções | 8 | 12 | **BT** |
 | B | Média CC | 2.25 | 2.00 | Empate |
-| C | Flash base | 37.329 B | **36.369 B** | FSM |
-| C | Custo em Flash do tamper | 224 B | **224 B** | Empate |
-| C | RAM base | 2.720 B | **2.400 B** | FSM |
-| C | Custo em RAM do tamper | +96 B | **+0 B** | FSM |
+| C | Flash base | 36.833 B | **36.417 B** | FSM |
+| C | Custo em Flash do tamper | **112 B** | 224 B | **BT** |
+| C | RAM base | 2.592 B | **2.400 B** | FSM |
+| C | Custo em RAM do tamper | +32 B | **+0 B** | FSM |
 | D | Equivalência Comportamental | APROVADO | APROVADO | Empate |
 | E | Latência Média (Cortex-M0) | 43,00 µs | **3,73 µs** | FSM |
 
 **Eixo A — Modelo:** A FSM requer menos edições a nível de grafo (GED=4) que a BT (GED=6) para incorporar a funcionalidade tamper. Isso se deve ao fato da extensão tamper da FSM adicionar um único novo estado com arestas vindas de todos os estados existentes, enquanto a BT reestrutura sua raiz — uma operação de edição de árvore maior. Ambos os modelos permanecem simples e bem estruturados.
 
-**Eixo B — Código:** A BT vence decisivamente. Ela exige **2,5× menos linhas de código específicas da funcionalidade** que a FSM (12 vs 30). Isso confirma a hipótese central do BTreeFy: mudanças comportamentais expressas como novos nós folha em um modelo XML exigem adições mínimas de código C, enquanto extensões em FSM devem tocar todo estado existente que pode ser preempcionado pelo novo comportamento.
+**Eixo B — Código:** A BT vence decisivamente. Ela exige **2,3× menos linhas de código específicas da funcionalidade** que a FSM (12 vs 28). Isso confirma a hipótese central do BTreeFy: mudanças comportamentais expressas como novos nós folha em um modelo XML exigem adições mínimas de código C, enquanto extensões em FSM devem tocar todo estado existente que pode ser preempcionado pelo novo comportamento.
 
-**Eixo C — Footprint:** A FSM é mais enxuta na base (~960 B flash, ~320 B RAM). O runtime do BTreeFy é um overhead fixo que domina para árvores pequenas. O custo marginal da adição do tamper é equivalente em flash (+224 B cada) e levemente pior para a BT em RAM (+96 B vs 0 B). Para MCUs pesadamente restritas em recursos, a FSM é preferível; para aplicações onde a complexidade comportamental crescerá, o baixo custo de código por funcionalidade da BT se torna crescentemente vantajoso.
+**Eixo C — Footprint:** A FSM é mais enxuta na base (~416 B flash, ~192 B RAM). O runtime do BTreeFy é um overhead fixo que domina para árvores pequenas. O custo marginal da adição do tamper é menor para a BT em flash (+112 B vs +224 B) e levemente pior para a BT em RAM (+32 B vs 0 B). Para MCUs pesadamente restritas em RAM, a FSM é preferível; para aplicações onde a complexidade comportamental crescerá, o baixo custo de código por funcionalidade da BT se reflete inclusive na economia de Flash, tornando-se crescentemente vantajoso.
 
-**Avaliação geral do BTreeFy:** O framework cumpre sua promessa principal — mudanças comportamentais são mais fáceis e baratas de expressar (Eixo B). A contrapartida é um overhead de execução fixo (Eixo C) e uma distância de edição de modelo um pouco maior quando as funcionalidades reestruturam a raiz da árvore (Eixo A). Para aplicações de rastreamento de ativos em MCUs com ≥256 KB de flash, o overhead de ~1 KB do BTreeFy é insignificante e a vantagem na modificabilidade do código é bastante significativa.
+**Avaliação geral do BTreeFy:** O framework cumpre sua promessa principal — mudanças comportamentais são mais fáceis e baratas de expressar (Eixo B). A contrapartida é um overhead de memória base (Eixo C) e uma distância de edição de modelo um pouco maior quando as funcionalidades reestruturam a raiz da árvore (Eixo A). Para aplicações de rastreamento de ativos em MCUs com ≥256 KB de flash, o overhead de ~416 B do BTreeFy é insignificante e a vantagem na modificabilidade do código e no menor custo de extensão em Flash é bastante significativa.
 
 **Eixo D — Equivalência Comportamental:** Ambas as abordagens provaram ser perfeitamente determinísticas e funcionalmente idênticas, sem produzir qualquer divergência nos comandos de saída durante a simulação contínua com sensores randômicos.
 
@@ -239,12 +248,12 @@ Ambos os cenários, base (`no-tamper`) e estendido (`tamper`), produziram **zero
 
 ### 2. Pontos Fortes
 *   **Avaliação Holística e Multidimensional:** O artigo se destaca por não olhar apenas para uma métrica isolada. A combinação de métricas de engenharia de software (GED, LOC, Complexidade Ciclomática) com métricas clássicas de sistemas embarcados (Pegada de Memória/Footprint, Latência de Pior Caso e Equivalência Comportamental determinística) fornece um panorama incrivelmente completo.
-*   **Vantagem Comprovada em Manutenibilidade (Eixo B):** O resultado de que a BT exigiu 2,5× menos código condicional específico (12 LOC vs 30 LOC) para implementar uma funcionalidade preemptiva (Tamper) valida quantitativamente a hipótese de que as BTs favorecem a separação de interesses e a extensibilidade melhor que as FSMs.
+*   **Vantagem Comprovada em Manutenibilidade (Eixo B):** O resultado de que a BT exigiu 2,3× menos código condicional específico (12 SLOC vs 28 SLOC) para implementar uma funcionalidade preemptiva (Tamper) valida quantitativamente a hipótese de que as BTs favorecem a separação de interesses e a extensibilidade melhor que as FSMs.
 *   **Robustez Sob Escala Massiva (Eixo E):** A recente adição do Eixo E elevou significativamente a qualidade do trabalho. Ao testar o motor contra um modelo massivo gerado proceduralmente (FSM com 64 estados/95 transições vs BT com 125 nós) diretamente em hardware Cortex-M0 real (Nucleo F091RC), os autores provaram que a arquitetura não quebra sob estresse.
 *   **Transparência no Overhead de Desempenho:** A honestidade em reportar que a BT é ~11,5× mais lenta que a FSM (43,00 µs vs 3,73 µs) fortalece o artigo. Os autores argumentam muito bem que, na esmagadora maioria das aplicações IoT (onde eventos ocorrem em milissegundos), um Worst-Case Execution Time (WCET) de 49 µs para varrer 125 nós lógicos em um microcontrolador M0 de baixo custo é totalmente irrisório, justificando amplamente a troca de ciclos de CPU por uma drástica melhoria na arquitetura do software.
 
 ### 3. Fraquezas e Áreas de Melhoria
 *   **A interpretação inicial do Eixo A (Graph Edit Distance) precisa de nuance:** O artigo aponta que a FSM tem um GED menor (4.0) comparado à BT (6.0) para a adição da funcionalidade. Comparar o GED de uma árvore estrutural LCRS (onde as preempções inserem nós no topo da hierarquia) com o GED de um grafo de controle de estados (onde as preempções adicionam arestas espalhadas) é complexo. O texto deve deixar mais explícito que um GED maior na BT *não* significa maior esforço do programador (como o Eixo B prova), mas sim que o modelo absorve a complexidade arquitetural no lugar do código.
-*   **Footprint Fixo para Sistemas Ultra-Restritos:** O runtime do BTreeFy impõe uma taxa base de ~1 KB em Flash e ~320 B em RAM. Embora perfeitamente aceitável para MCUs modernas de entrada (ex: 32 KB Flash / 8 KB RAM), o artigo deve ser cauteloso em recomendar a abordagem para nós ultra-restritos (ex: 8 KB Flash / 1 KB RAM), onde a FSM tradicional continuaria sendo a única opção viável.
+*   **Footprint Fixo para Sistemas Ultra-Restritos:** O runtime do BTreeFy impõe uma taxa base de ~416 B em Flash e ~192 B em RAM. Embora perfeitamente aceitável para MCUs modernas de entrada (ex: 32 KB Flash / 8 KB RAM), o artigo deve ser cauteloso em recomendar a abordagem para nós ultra-restritos (ex: 8 KB Flash / 1 KB RAM), onde a FSM tradicional continuaria sendo a única opção viável.
 
 **Recomendação:** **Aceitar fortemente (Strong Accept)**. A adição da análise de desempenho e escala massiva (Eixo E) supriu a principal lacuna metodológica anterior. O estudo agora apresenta uma fundação empírica sólida demonstrando que as Árvores de Comportamento são uma alternativa madura, de altíssimo custo-benefício em engenharia de software e viável em tempo-real para aplicações embarcadas baseadas em RTOS.

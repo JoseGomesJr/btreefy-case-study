@@ -65,6 +65,24 @@ def section_sizes(elf_path: Path) -> dict[str, int]:
     return sizes
 
 
+def get_archive_size(archive_path: Path) -> dict[str, int]:
+    if not archive_path.exists():
+        return {".text": 0, ".data": 0, ".bss": 0}
+    try:
+        output = subprocess.check_output(["size", "-t", str(archive_path)], text=True)
+        for line in output.splitlines():
+            if "(TOTALS)" in line:
+                parts = line.split()
+                return {
+                    ".text": int(parts[0]),
+                    ".data": int(parts[1]),
+                    ".bss": int(parts[2]),
+                }
+    except Exception:
+        pass
+    return {".text": 0, ".data": 0, ".bss": 0}
+
+
 @app.command()
 def run(build_root: Path = BUILD_ROOT, skip_build: bool = False,
         board: str = BOARD) -> None:
@@ -108,6 +126,39 @@ def run(build_root: Path = BUILD_ROOT, skip_build: bool = False,
         writer.writerows(rows)
 
     typer.echo(f"wrote {out_path} (board={board})")
+
+    engine_rows = []
+    for policy, tamper in variants:
+        tag = f"{policy}_{'tamper' if tamper else 'base'}"
+        build_dir = build_root / tag
+        
+        if policy == "bt":
+            archive_path = build_dir / "lib" / "libBTreeFy-Src.a"
+        else:
+            archive_path = build_dir / "zephyr" / "lib" / "smf" / "liblib__smf.a"
+            
+        e_sizes = get_archive_size(archive_path)
+        flash_total = e_sizes[".text"] + e_sizes[".data"]
+        ram_total = e_sizes[".data"] + e_sizes[".bss"]
+        
+        engine_rows.append(
+            [
+                tag,
+                e_sizes[".text"],
+                e_sizes[".data"],
+                e_sizes[".bss"],
+                flash_total,
+                ram_total,
+            ]
+        )
+
+    out_engine_path = RESULTS_DIR / "engine_footprint.csv"
+    with out_engine_path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["variant", "text", "data", "bss", "flash_total", "ram_total"])
+        writer.writerows(engine_rows)
+        
+    typer.echo(f"wrote {out_engine_path} (board={board})")
 
 
 if __name__ == "__main__":
