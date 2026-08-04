@@ -21,7 +21,7 @@ The goal of the case study is to evaluate the BTreeFy framework along three axes
 - **Axis A — Model modifiability**: How much does the model (graph) change when a feature (tamper
   detection) is added? Measured via Graph Edit Distance (GED) and node/edge counts.
 - **Axis B — Code modifiability**: How much code changes when the tamper feature is added? Measured
-  via lines of code inside `#ifdef CONFIG_TRACKER_WITH_TAMPER` blocks and McCabe cyclomatic complexity.
+  via true Source Lines of Code (SLOC) using `unifdef` + `cloc` and McCabe cyclomatic complexity.
 - **Axis C — Flash/RAM footprint**: What is the static memory footprint for each implementation?
   Measured by cross-compiling for `nrf52840dk/nrf52840` and reading ELF section sizes.
 - **Axis D — Behavioral equivalence**: Do both implementations react identically to the same event
@@ -281,8 +281,8 @@ uv run python model_metrics.py --build-root /path/to/build
 
 #### `code_metrics.py` — Axis B: Code modifiability
 
-Counts lines inside `#ifdef CONFIG_TRACKER_WITH_TAMPER` blocks and computes McCabe cyclomatic
-complexity via `lizard` on the BT and FSM source files.
+Uses `unifdef` and `cloc` to rigorously compute the Delta SLOC added by the tamper feature, and
+computes McCabe cyclomatic complexity via `lizard` on the BT and FSM source files.
 
 ```bash
 cd tools/metrics
@@ -318,7 +318,7 @@ Columns: `variant`, `text`, `rodata`, `data`, `bss`, `flash_total`, `ram_total`
 Procedurally generates a massive decision model (5 levels deep) to benchmark latency limits on constrained hardware.
 - Generates a 125-node Behavior Tree (XML).
 - Generates a 64-state / 95-transition Zephyr SMF FSM (C code).
-- Scaffolds a complete temporary Zephyr application at `tests/stress_app/`.
+- Scaffolds a complete temporary Zephyr application at `tests/stress_app/` (auto-generated and gitignored).
 
 ```bash
 cd tools/metrics
