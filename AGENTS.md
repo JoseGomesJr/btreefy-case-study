@@ -27,7 +27,7 @@ The goal of the case study is to evaluate the BTreeFy framework along three axes
 - **Axis D — Behavioral equivalence**: Do both implementations react identically to the same event
   sequence? Validated by an equivalence oracle that runs both binaries on `native_sim` with a shared
   seeded PRNG and classifies behavioral divergences.
-- **Axis E — Execution Performance (Latency)**: What is the processing overhead (WCET and Mean) of a large decision graph? Measured via a procedurally generated 125-node/64-state stress test running on a real Cortex-M0 microcontroller (Nucleo F091RC).
+- **Axis E — Execution Performance (Latency)**: What is the processing overhead (WCET and Mean) of a large decision graph? Measured via a procedurally generated 125-node/64-state stress test running on a real Cortex-M0 microcontroller (Nucleo F091RC). *(Note: The execution of the stress app is currently parked/ignored in the automated reporting pipeline, marked as TO BE DONE).*
 
 ---
 
@@ -313,7 +313,7 @@ uv run python footprint.py --build-root /path/to/build/footprint
 **Output**: `results/footprint.csv`
 Columns: `variant`, `text`, `rodata`, `data`, `bss`, `flash_total`, `ram_total`
 
-#### `generate_stress.py` — Axis E: Execution Performance (Latency)
+#### `generate_stress.py` — Axis E: Execution Performance (Latency) *(Currently Ignored)*
 
 Procedurally generates a massive decision model (5 levels deep) to benchmark latency limits on constrained hardware.
 - Generates a 125-node Behavior Tree (XML).

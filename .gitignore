@@ -17,3 +17,6 @@ uv.lock
 # Auto-generated stress test artifacts
 models/stress_bt.xml
 tests/stress_app/
+
+# Auto-generated report
+docs/evaluation_report_pt_generated.md

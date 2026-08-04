@@ -363,12 +363,12 @@ def make_markdown(
         replacements.update(e_vars)
         
     lat_vars = {
-        "{{FSM_MIN_LATENCY}}": "2.174",
-        "{{FSM_MAX_LATENCY}}": "4.712",
-        "{{FSM_AVG_LATENCY}}": "3.729",
-        "{{BT_MIN_LATENCY}}": "40.076",
-        "{{BT_MAX_LATENCY}}": "49.399",
-        "{{BT_AVG_LATENCY}}": "43.002",
+        "{{FSM_MIN_LATENCY}}": "TO BE DONE",
+        "{{FSM_MAX_LATENCY}}": "TO BE DONE",
+        "{{FSM_AVG_LATENCY}}": "TO BE DONE",
+        "{{BT_MIN_LATENCY}}": "TO BE DONE",
+        "{{BT_MAX_LATENCY}}": "TO BE DONE",
+        "{{BT_AVG_LATENCY}}": "TO BE DONE",
     }
     replacements.update(lat_vars)
         
