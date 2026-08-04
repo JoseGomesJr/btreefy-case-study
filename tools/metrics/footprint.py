@@ -62,6 +62,10 @@ def section_sizes(elf_path: Path) -> dict[str, int]:
         for section in elf.iter_sections():
             if section.name in sizes:
                 sizes[section.name] = section["sh_size"]
+            elif f".{section.name}" in sizes:
+                sizes[f".{section.name}"] = section["sh_size"]
+            elif section.name == "datas":
+                sizes[".data"] = section["sh_size"]
     return sizes
 
 
