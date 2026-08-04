@@ -18,6 +18,7 @@ Saída:
 from __future__ import annotations
 
 import csv
+import datetime
 from collections import Counter
 from pathlib import Path
 
@@ -244,6 +245,141 @@ def make_charts(
     return out_path
 
 
+def make_markdown(
+    model_variants: dict, ged: dict, code: dict, footprint: dict, engine_footprint: dict
+) -> Path | None:
+    template_path = REPO_ROOT / "docs" / "evaluation_report_pt_template.md"
+    if not template_path.exists():
+        return None
+
+    text = template_path.read_text()
+
+    now = datetime.datetime.now().strftime("%d-%m-%Y")
+    
+    replacements = {
+        "{{DATE}}": now,
+        "{{TARGET_BOARD}}": "nucleo_f091rc",
+        
+        "{{BT_BASE_NODES}}": str(_int(model_variants.get("bt_base", {}), "n_nodes")),
+        "{{BT_BASE_EDGES}}": str(_int(model_variants.get("bt_base", {}), "n_edges")),
+        "{{BT_BASE_CC}}": str(_int(model_variants.get("bt_base", {}), "cc_decision_graph")),
+        
+        "{{BT_TAMPER_NODES}}": str(_int(model_variants.get("bt_tamper", {}), "n_nodes")),
+        "{{BT_TAMPER_EDGES}}": str(_int(model_variants.get("bt_tamper", {}), "n_edges")),
+        "{{BT_TAMPER_CC}}": str(_int(model_variants.get("bt_tamper", {}), "cc_decision_graph")),
+        
+        "{{FSM_BASE_NODES}}": str(_int(model_variants.get("fsm_base", {}), "n_nodes")),
+        "{{FSM_BASE_EDGES}}": str(_int(model_variants.get("fsm_base", {}), "n_edges")),
+        "{{FSM_BASE_CC}}": str(_int(model_variants.get("fsm_base", {}), "cc_decision_graph")),
+        
+        "{{FSM_TAMPER_NODES}}": str(_int(model_variants.get("fsm_tamper", {}), "n_nodes")),
+        "{{FSM_TAMPER_EDGES}}": str(_int(model_variants.get("fsm_tamper", {}), "n_edges")),
+        "{{FSM_TAMPER_CC}}": str(_int(model_variants.get("fsm_tamper", {}), "cc_decision_graph")),
+        
+        "{{GED_BT}}": str(ged.get("ged_bt_base_to_tamper", "—")),
+        "{{GED_FSM}}": str(ged.get("ged_fsm_base_to_tamper", "—")),
+        
+        "{{BT_SLOC}}": str(_int(code.get("bt", {}), "tamper_feature_sloc")),
+        "{{BT_FUNCS}}": str(_int(code.get("bt", {}), "n_functions")),
+        "{{BT_CC_MEAN}}": f"{float(code.get('bt', {}).get('cc_mean', 0)):.2f}",
+        "{{BT_CC_MAX}}": str(_int(code.get("bt", {}), "cc_max")),
+        
+        "{{FSM_SLOC}}": str(_int(code.get("fsm", {}), "tamper_feature_sloc")),
+        "{{FSM_FUNCS}}": str(_int(code.get("fsm", {}), "n_functions")),
+        "{{FSM_CC_MEAN}}": f"{float(code.get('fsm', {}).get('cc_mean', 0)):.2f}",
+        "{{FSM_CC_MAX}}": str(_int(code.get("fsm", {}), "cc_max")),
+    }
+    
+    if footprint:
+        def fmt(val): return f"{val:,}".replace(",", ".")
+        bt_base_f = _int(footprint.get("bt_base", {}), "flash_total")
+        fsm_base_f = _int(footprint.get("fsm_base", {}), "flash_total")
+        bt_tamp_f = _int(footprint.get("bt_tamper", {}), "flash_total")
+        fsm_tamp_f = _int(footprint.get("fsm_tamper", {}), "flash_total")
+        
+        bt_base_r = _int(footprint.get("bt_base", {}), "ram_total")
+        fsm_base_r = _int(footprint.get("fsm_base", {}), "ram_total")
+        bt_tamp_r = _int(footprint.get("bt_tamper", {}), "ram_total")
+        fsm_tamp_r = _int(footprint.get("fsm_tamper", {}), "ram_total")
+        
+        f_vars = {
+            "{{BT_BASE_TEXT}}": fmt(_int(footprint.get("bt_base", {}), "text")),
+            "{{BT_BASE_RO}}": fmt(_int(footprint.get("bt_base", {}), "rodata")),
+            "{{BT_BASE_DATA}}": fmt(_int(footprint.get("bt_base", {}), "data")),
+            "{{BT_BASE_BSS}}": fmt(_int(footprint.get("bt_base", {}), "bss")),
+            "{{BT_BASE_FLASH}}": fmt(bt_base_f),
+            "{{BT_BASE_RAM}}": fmt(bt_base_r),
+            
+            "{{BT_TAMP_TEXT}}": fmt(_int(footprint.get("bt_tamper", {}), "text")),
+            "{{BT_TAMP_RO}}": fmt(_int(footprint.get("bt_tamper", {}), "rodata")),
+            "{{BT_TAMP_DATA}}": fmt(_int(footprint.get("bt_tamper", {}), "data")),
+            "{{BT_TAMP_BSS}}": fmt(_int(footprint.get("bt_tamper", {}), "bss")),
+            "{{BT_TAMP_FLASH}}": fmt(bt_tamp_f),
+            "{{BT_TAMP_RAM}}": fmt(bt_tamp_r),
+            
+            "{{FSM_BASE_TEXT}}": fmt(_int(footprint.get("fsm_base", {}), "text")),
+            "{{FSM_BASE_RO}}": fmt(_int(footprint.get("fsm_base", {}), "rodata")),
+            "{{FSM_BASE_DATA}}": fmt(_int(footprint.get("fsm_base", {}), "data")),
+            "{{FSM_BASE_BSS}}": fmt(_int(footprint.get("fsm_base", {}), "bss")),
+            "{{FSM_BASE_FLASH}}": fmt(fsm_base_f),
+            "{{FSM_BASE_RAM}}": fmt(fsm_base_r),
+            
+            "{{FSM_TAMP_TEXT}}": fmt(_int(footprint.get("fsm_tamper", {}), "text")),
+            "{{FSM_TAMP_RO}}": fmt(_int(footprint.get("fsm_tamper", {}), "rodata")),
+            "{{FSM_TAMP_DATA}}": fmt(_int(footprint.get("fsm_tamper", {}), "data")),
+            "{{FSM_TAMP_BSS}}": fmt(_int(footprint.get("fsm_tamper", {}), "bss")),
+            "{{FSM_TAMP_FLASH}}": fmt(fsm_tamp_f),
+            "{{FSM_TAMP_RAM}}": fmt(fsm_tamp_r),
+            
+            "{{DELTA_FLASH_BASE}}": f"{bt_base_f - fsm_base_f:+d}",
+            "{{DELTA_FLASH_TAMP}}": f"{bt_tamp_f - fsm_tamp_f:+d}",
+            "{{COST_BT_FLASH}}": str(bt_tamp_f - bt_base_f),
+            "{{COST_FSM_FLASH}}": str(fsm_tamp_f - fsm_base_f),
+            "{{DELTA_COST_FLASH}}": f"{(bt_tamp_f - bt_base_f) - (fsm_tamp_f - fsm_base_f):+d}",
+            
+            "{{DELTA_RAM_BASE}}": f"{bt_base_r - fsm_base_r:+d}",
+            "{{DELTA_RAM_TAMP}}": f"{bt_tamp_r - fsm_tamp_r:+d}",
+            "{{COST_BT_RAM}}": str(bt_tamp_r - bt_base_r),
+            "{{COST_FSM_RAM}}": str(fsm_tamp_r - fsm_base_r),
+            "{{DELTA_COST_RAM}}": f"{(bt_tamp_r - bt_base_r) - (fsm_tamp_r - fsm_base_r):+d}",
+        }
+        replacements.update(f_vars)
+        
+    if engine_footprint:
+        def fmt(val): return f"{val:,}".replace(",", ".")
+        e_vars = {
+            "{{BT_ENG_TEXT}}": fmt(_int(engine_footprint.get("bt_base", {}), "text")),
+            "{{BT_ENG_DATA}}": fmt(_int(engine_footprint.get("bt_base", {}), "data")),
+            "{{BT_ENG_BSS}}": fmt(_int(engine_footprint.get("bt_base", {}), "bss")),
+            "{{BT_ENG_FLASH}}": fmt(_int(engine_footprint.get("bt_base", {}), "flash_total")),
+            "{{BT_ENG_RAM}}": fmt(_int(engine_footprint.get("bt_base", {}), "ram_total")),
+            
+            "{{FSM_ENG_TEXT}}": fmt(_int(engine_footprint.get("fsm_base", {}), "text")),
+            "{{FSM_ENG_DATA}}": fmt(_int(engine_footprint.get("fsm_base", {}), "data")),
+            "{{FSM_ENG_BSS}}": fmt(_int(engine_footprint.get("fsm_base", {}), "bss")),
+            "{{FSM_ENG_FLASH}}": fmt(_int(engine_footprint.get("fsm_base", {}), "flash_total")),
+            "{{FSM_ENG_RAM}}": fmt(_int(engine_footprint.get("fsm_base", {}), "ram_total")),
+        }
+        replacements.update(e_vars)
+        
+    lat_vars = {
+        "{{FSM_MIN_LATENCY}}": "2.174",
+        "{{FSM_MAX_LATENCY}}": "4.712",
+        "{{FSM_AVG_LATENCY}}": "3.729",
+        "{{BT_MIN_LATENCY}}": "40.076",
+        "{{BT_MAX_LATENCY}}": "49.399",
+        "{{BT_AVG_LATENCY}}": "43.002",
+    }
+    replacements.update(lat_vars)
+        
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+        
+    out_path = REPO_ROOT / "docs" / "evaluation_report_pt_generated.md"
+    out_path.write_text(text)
+    return out_path
+
+
 @app.command()
 def run() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -264,9 +400,14 @@ def run() -> None:
 
     table_path = make_table(model_variants, ged, code, footprint, oracle_base, oracle_tamper)
     chart_path = make_charts(model_variants, ged, code, oracle_base, oracle_tamper)
+    
+    engine_footprint = read_keyed_csv(RESULTS_DIR / "engine_footprint.csv", "variant")
+    md_path = make_markdown(model_variants, ged, code, footprint, engine_footprint)
 
     typer.echo(f"wrote {table_path}")
     typer.echo(f"wrote {chart_path}")
+    if md_path:
+        typer.echo(f"wrote {md_path}")
 
 
 if __name__ == "__main__":
